@@ -2157,26 +2157,21 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
 
       {/* Centered, Responsive Image Area */}
       <div 
-        className="relative flex items-center justify-center bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
-        style={{
-          maxWidth: '90vw',
-          maxHeight: '70vh',
-          width: '100%',
-          aspectRatio: `${resolution.width} / ${resolution.height}`,
-        }}
+        className="relative flex items-center justify-center w-full h-full bg-white overflow-hidden p-12"
+        style={{ width: '100%', height: '100%' }}
       >
         {/* Image Layer with Default Image */}
         {videoUrl ? (
           <img
             src={videoUrl}
             alt="Live Feed"
-            className="w-full h-full object-contain"
+            className="block mx-auto my-auto max-w-full max-h-full"
           />
         ) : imageUrl ? (
           <img
             src={imageUrl}
             alt="Captured Image"
-            className="w-full h-full object-contain"
+            className="block mx-auto my-auto max-w-full max-h-full"
             onError={(e) => {
               console.error('Error displaying image');
               setImageUrl(null);
@@ -2187,7 +2182,7 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
           <img
             src={envisionLogo}
             alt="Envision Logo"
-            className="w-full h-full object-contain"
+            className="block mx-auto my-auto max-w-full max-h-full"
           />
         )}
 
@@ -2195,9 +2190,7 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 w-full h-full pointer-events-auto"
-          style={{
-            // No fixed width/height, let it scale with parent
-          }}
+          style={{ width: '100%', height: '100%' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

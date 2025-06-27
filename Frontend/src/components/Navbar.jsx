@@ -794,9 +794,9 @@ const Navbar = ({ imagePath, setImagePath, currentImageUrl }) => {
     <>
       <nav className="bg-gray-800 text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="relative flex items-center justify-between h-8">
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+        <div className="relative flex items-center justify-end h-8 w-full">
+          {/* Mobile menu button (optional, can be removed if not needed) */}
+          {/* <div className="md:hidden">
             <button className="inline-flex items-center justify-center p-1 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none">
               <span className="sr-only">Open main menu</span>
               <svg
@@ -814,56 +814,55 @@ const Navbar = ({ imagePath, setImagePath, currentImageUrl }) => {
                 />
               </svg>
             </button>
-          </div>
+          </div> */}
 
-          {/* Desktop menu */}
-          <div className="hidden md:block">
-            <div className="flex space-x-2">
+          {/* All menu items aligned left */}
+          <div className="hidden md:block w-full">
+            <div className="flex space-x-2 justify-start w-full">
               {menuItems.map((item, index) => (
-                  <div 
-                    key={index} 
-                    className="relative"
-                    ref={el => dropdownRefs.current[index] = el}
-                  >
+                <div 
+                  key={index} 
+                  className="relative"
+                  ref={el => dropdownRefs.current[index] = el}
+                >
                   <button
                     onClick={() => handleDropdown(index)}
-                      onKeyDown={(e) => handleKeyDown(e, index)}
-                      className={`px-2 py-1 rounded-md text-xs font-medium 
-                        transition-colors duration-200 ease-in-out
-                        ${activeDropdown === index 
-                          ? 'bg-gray-700 text-white' 
-                          : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                        }
-                        focus:outline-none focus:ring-2 focus:ring-offset-2 
-                        focus:ring-offset-gray-800 focus:ring-white`}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    className={`px-2 py-1 rounded-md text-xs font-medium 
+                      transition-colors duration-200 ease-in-out
+                      ${activeDropdown === index 
+                        ? 'bg-gray-700 text-white' 
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                      }
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 
+                      focus:ring-offset-gray-800 focus:ring-white`}
                     aria-expanded={activeDropdown === index}
-                      role="menuitem"
-                      tabIndex={0}
+                    role="menuitem"
+                    tabIndex={0}
                   >
                     {item.name}
                   </button>
-                  
                   {activeDropdown === index && (
-                      <div 
-                        className="origin-top-left absolute left-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 
-                          transform transition-all duration-200 ease-in-out z-50"
-                        role="menu"
-                      >
+                    <div 
+                      className="origin-top-right absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 
+                        transform transition-all duration-200 ease-in-out z-50"
+                      role="menu"
+                    >
                       <div className="py-1">
                         {item.options.map((option, optionIndex) => (
                           <a
                             key={optionIndex}
                             href="#"
-                              className="block px-3 py-1 text-xs text-gray-700 
-                                hover:bg-gray-100 hover:text-gray-900
-                                transition-colors duration-150 ease-in-out
-                                focus:outline-none focus:bg-gray-100 focus:text-gray-900"
+                            className="block px-3 py-1 text-xs text-gray-700 
+                              hover:bg-gray-100 hover:text-gray-900
+                              transition-colors duration-150 ease-in-out
+                              focus:outline-none focus:bg-gray-100 focus:text-gray-900"
                             onClick={(e) => {
                               e.preventDefault();
-                                handleOptionClick(option);
+                              handleOptionClick(option);
                             }}
-                              role="menuitem"
-                              tabIndex={0}
+                            role="menuitem"
+                            tabIndex={0}
                           >
                             {option}
                           </a>

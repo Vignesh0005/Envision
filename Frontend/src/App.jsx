@@ -103,9 +103,8 @@ const App = () => {
           </div>
         </div>
         {/* Main Image Viewer Centered */}
-        <div className="flex-1 flex items-center justify-center overflow-auto">
-          <div className="relative border-2 border-black bg-white rounded-lg shadow-lg flex items-center justify-center"
-            style={{ maxWidth: VIEWER_MAX_WIDTH, maxHeight: VIEWER_MAX_HEIGHT, width: '100%', height: '100%' }}>
+        <div className="flex-1 flex items-center justify-center overflow-hidden h-full">
+          <div className="relative bg-white flex items-center justify-center w-full h-full">
             <Display
               isRecording={isRecording}
               imagePath={imagePath}
