@@ -1,0 +1,5 @@
+"Frontend/dist_electron/" 
+"Frontend/backend/build/" 
+
+# Ignore all dist folders in Frontend and Frontend/backend
+Frontend/**/dist/
