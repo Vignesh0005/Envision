@@ -238,7 +238,7 @@ export default function PorosityAnalysis({ onClose, imagePath }) {
       setPlotData(data.plot_data || null);
       // Display the processed/annotated image after analysis
       if (data.analyzed_image_path) {
-        setDisplayedImage(`file:///${data.analyzed_image_path.replace(/\\/g, '/').replace(/^\/([A-Za-z]):\//, '$1:/')}`);
+        setDisplayedImage(`file:///${data.analyzed_image_path.replace(/\\/g, '/').replace(/^\/([A-Za-z]):\//, '$1:/')}?t=${Date.now()}`);
       } else {
         setDisplayedImage(null);
       }

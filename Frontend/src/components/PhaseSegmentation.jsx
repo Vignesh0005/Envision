@@ -33,10 +33,10 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
     const [configurations, setConfigurations] = useState({});
     const [currentPhase, setCurrentPhase] = useState(null);
     const [phases, setPhases] = useState([]);
-    const [selectedColor, setSelectedColor] = useState('#ff0000');
-    const [colorMode, setColorMode] = useState('rgb'); // 'rgb' or 'hsv'
     const [detectionMode, setDetectionMode] = useState('auto'); // 'auto' or 'manual'
     const [boundaries, setBoundaries] = useState([]);
+    const [minIntensity, setMinIntensity] = useState(0);
+    const [maxIntensity, setMaxIntensity] = useState(255);
     const [results, setResults] = useState([]);
     const [summaryResults, setSummaryResults] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -50,19 +50,6 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
     const dragStartXRef = useRef(0);
     const dragHandleRef = useRef(null); // 'start' or 'end'
     const rgbHistogramRef = useRef(null);
-
-    // Color range states
-    const [rgbRange, setRgbRange] = useState({
-        r: [0, 255],
-        g: [0, 255],
-        b: [0, 255]
-    });
-
-    const [hsvRange, setHsvRange] = useState({
-        h: [0, 360],
-        s: [0, 100],
-        v: [0, 100]
-    });
 
     // Shape filter states
     const [shapeFilters, setShapeFilters] = useState({
@@ -144,10 +131,8 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
     const handleNewPhase = () => {
         setCurrentPhase({
             name: '',
-            color: selectedColor,
-            colorMode: colorMode,
             detectionMode: detectionMode,
-            colorRange: colorMode === 'rgb' ? rgbRange : hsvRange,
+            intensityRange: { min: minIntensity, max: maxIntensity },
             boundaries: [],
             shapeFilters: { ...shapeFilters }
         });
@@ -157,34 +142,14 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
         setCurrentPhase(prev => ({ ...prev, name }));
     };
 
-    const handleColorModeChange = (mode) => {
-        setColorMode(mode);
-        setCurrentPhase(prev => ({
-            ...prev,
-            colorMode: mode,
-            colorRange: mode === 'rgb' ? rgbRange : hsvRange
-        }));
-    };
+    // Remove color mode and color range logic
 
     const handleDetectionModeChange = (mode) => {
         setDetectionMode(mode);
         setCurrentPhase(prev => ({ ...prev, detectionMode: mode }));
     };
 
-    const handleColorRangeChange = (type, range) => {
-        if (colorMode === 'rgb') {
-            setRgbRange(prev => ({ ...prev, [type]: range }));
-        } else {
-            setHsvRange(prev => ({ ...prev, [type]: range }));
-        }
-        
-        setCurrentPhase(prev => ({
-            ...prev,
-            colorRange: colorMode === 'rgb' ? 
-                { ...rgbRange, [type]: range } :
-                { ...hsvRange, [type]: range }
-        }));
-    };
+    // Remove color range change logic
 
     const handleShapeFilterChange = (type, values) => {
         setShapeFilters(prev => ({
@@ -221,7 +186,9 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
 
             const response = await axios.post('/api/phase/analyze', {
                 image_path: imagePath,
-                configuration: { phases: [currentPhase] }
+                configuration: { phases: [currentPhase] },
+                min_intensity: minIntensity,
+                max_intensity: maxIntensity
             });
 
             if (response.data.status === 'success') {
@@ -662,37 +629,39 @@ const PhaseSegmentation = ({ imagePath, imageUrl, onClose }) => {
                                                 <span className="text-sm text-gray-600">Selected Color</span>
                                             </div>
 
-                                            <div className="space-y-4">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-gray-600">Color Mode</span>
-                                                    <Switch
-                                                        checked={colorMode === 'hsv'}
-                                                        onChange={checked => handleColorModeChange(checked ? 'hsv' : 'rgb')}
-                                                        checkedChildren="HSV"
-                                                        unCheckedChildren="RGB"
-                                                    />
-                                                </div>
-                                            </div>
+                                            {/* Remove color mode and color range controls */}
                                         </div>
                                     </Card>
 
                                     {/* Color Controls */}
                                     <Card className="w-full bg-white shadow-sm">
                                         <h4 className="text-sm font-medium mb-4">
-                                            {colorMode === 'rgb' ? 'RGB Controls' : 'HSV Controls'}
+                                            Intensity Threshold
                                         </h4>
-                                        {colorMode === 'rgb' && (
-                                            <div className="space-y-4">
-                                                <div className="mb-2">
-                                                    <canvas ref={rgbHistogramRef} width={256} height={100} className="w-full border rounded bg-white" />
-                                                    <div className="flex justify-center gap-4 mt-2">
-                                                        <span className="text-sm text-red-600 font-semibold">R</span>
-                                                        <span className="text-sm text-green-600 font-semibold">G</span>
-                                                        <span className="text-sm text-blue-600 font-semibold">B</span>
-                                                    </div>
-                                                </div>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">Min Intensity</span>
+                                                <Slider
+                                                    value={minIntensity}
+                                                    onChange={setMinIntensity}
+                                                    min={0}
+                                                    max={255}
+                                                    step={1}
+                                                    className="w-full"
+                                                />
                                             </div>
-                                        )}
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">Max Intensity</span>
+                                                <Slider
+                                                    value={maxIntensity}
+                                                    onChange={setMaxIntensity}
+                                                    min={0}
+                                                    max={255}
+                                                    step={1}
+                                                    className="w-full"
+                                                />
+                                            </div>
+                                        </div>
                                     </Card>
 
                                     {/* Save Phase Button */}

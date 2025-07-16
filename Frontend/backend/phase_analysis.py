@@ -5,18 +5,21 @@ import os
 from sklearn.cluster import KMeans
 from scipy import ndimage
 
-def analyze_phase(image_path, method='area_fraction', configuration=None):
+def analyze_phase(image_path, method='area_fraction', configuration=None, min_intensity=0, max_intensity=255):
     """
-    Analyze phase segmentation in the image
+    Analyze phase segmentation in the image using intensity thresholding
     Args:
         image_path: Path to the image
         method: Analysis method ('area_fraction' or 'point_count')
         configuration: Dictionary containing phase configuration
+        min_intensity: Minimum intensity threshold (0-255)
+        max_intensity: Maximum intensity threshold (0-255)
     """
     try:
         print(f"Analyzing phase for image: {image_path}")
         print(f"Method: {method}")
         print(f"Configuration: {configuration}")
+        print(f"Intensity thresholds: {min_intensity}-{max_intensity}")
 
         # Read image
         img = cv2.imread(image_path)
@@ -27,8 +30,9 @@ def analyze_phase(image_path, method='area_fraction', configuration=None):
                 'message': f'Failed to read image at path: {image_path}'
             }
 
-        # Get image dimensions
-        height, width = img.shape[:2]
+        # Convert to grayscale for intensity-based segmentation
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        height, width = gray.shape[:2]
         total_pixels = height * width
         print(f"Image dimensions: {width}x{height}")
 
@@ -40,31 +44,20 @@ def analyze_phase(image_path, method='area_fraction', configuration=None):
             }
 
         results = {}
-        
-        # Process each phase in configuration
         for phase in configuration['phases']:
             try:
                 phase_name = phase.get('name')
                 if not phase_name:
                     continue
-
                 print(f"Processing phase: {phase_name}")
-                
-                # Convert image to appropriate color space
-                if phase.get('colorMode') == 'hsv':
-                    img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-                else:
-                    img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-                # Get color range from phase configuration
-                color_range = phase.get('colorRange', {})
-                detection_mode = phase.get('detectionMode', 'auto')
+                # Use intensity range from phase config if present, else from global
+                intensity_range = phase.get('intensityRange', {'min': min_intensity, 'max': max_intensity})
+                phase_min = intensity_range.get('min', min_intensity)
+                phase_max = intensity_range.get('max', max_intensity)
 
-                # Create mask based on detection mode
-                if detection_mode == 'auto':
-                    mask = create_color_mask(img_converted, color_range, phase.get('colorMode', 'rgb'))
-                else:
-                    mask = create_boundary_mask(img_converted, phase.get('boundaries', []))
+                # Create mask for pixels within intensity range
+                mask = cv2.inRange(gray, phase_min, phase_max)
 
                 # Apply shape filters if present
                 shape_filters = phase.get('shapeFilters', {})
@@ -82,8 +75,7 @@ def analyze_phase(image_path, method='area_fraction', configuration=None):
                 # Store results
                 results[phase_name] = {
                     'percentage': round(phase_percentage, 2),
-                    'area': int(phase_area),
-                    'color': phase.get('color', '#000000')
+                    'area': int(phase_area)
                 }
 
             except Exception as phase_error:

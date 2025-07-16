@@ -105,21 +105,19 @@ class PorosityAnalyzer:
             height, width = image.shape[:2]
             original_color = image.copy()  # Always keep the original color image for annotation
 
-            results = []
+            # Prepare grayscale image for intensity calculation
+            gray_for_intensity = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            all_results = []
             # --- HSV Color-based Detection for colored circles ---
             if prep_method == 'color':
-                # Convert to HSV
                 hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-                # Define a mask for all non-white (colored) regions
-                # (tune these values as needed for your images)
                 lower = np.array([0, 50, 50])
                 upper = np.array([180, 255, 255])
                 mask = cv2.inRange(hsv, lower, upper)
-                # Morphological operations to clean up
                 kernel = np.ones((5, 5), np.uint8)
                 mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
                 mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-                # Find contours
                 contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
                 for i, contour in enumerate(contours):
                     try:
@@ -127,7 +125,7 @@ class PorosityAnalyzer:
                         perimeter = cv2.arcLength(contour, True)
                         x, y, w, h = cv2.boundingRect(contour)
                         image_area = height * width
-                        if area / image_area > 0.90 or area < 50:  # skip huge or tiny
+                        if area / image_area > 0.90 or area < 50:
                             continue
                         M = cv2.moments(contour)
                         if M["m00"] != 0:
@@ -150,11 +148,11 @@ class PorosityAnalyzer:
                             width_val = equivalent_diameter
                             area_val = area
                             perimeter_val = perimeter
-                        if filter_settings:
-                            if not self._validate_pore_against_filters(length, width_val, area_val, circularity, filter_settings):
-                                continue
-                        results.append({
-                            'id': len(results) + 1,
+                        mask_pore = np.zeros(gray_for_intensity.shape, np.uint8)
+                        cv2.drawContours(mask_pore, [contour], -1, 255, -1)
+                        mean_intensity = cv2.mean(gray_for_intensity, mask=mask_pore)[0]
+                        all_results.append({
+                            'id': 0,  # will be set after filtering
                             'length': round(length, 2),
                             'width': round(width_val, 2),
                             'area': round(area_val, 2),
@@ -163,23 +161,19 @@ class PorosityAnalyzer:
                             'q': 0,
                             'x': round(center_x, 2),
                             'y': round(center_y, 2),
-                            'bbox': [x, y, w, h]
+                            'bbox': [x, y, w, h],
+                            'mean_intensity': round(mean_intensity, 2)
                         })
                     except Exception as e:
                         print(f"Error processing color contour {i}: {str(e)}")
                         continue
             else:
-                # --- Existing grayscale/thresholding logic ---
-                # Convert to grayscale
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                # Apply preprocessing based on features
                 if features == 'dark':
                     gray = 255 - gray
-                # Apply thresholding
                 _, binary_min = cv2.threshold(gray, min_threshold, 255, cv2.THRESH_BINARY)
                 _, binary_max = cv2.threshold(gray, max_threshold, 255, cv2.THRESH_BINARY_INV)
                 binary = cv2.bitwise_and(binary_min, binary_max)
-                # Find contours
                 contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
                 for i, contour in enumerate(contours):
                     try:
@@ -210,11 +204,11 @@ class PorosityAnalyzer:
                             width_val = equivalent_diameter
                             area_val = area
                             perimeter_val = perimeter
-                        if filter_settings:
-                            if not self._validate_pore_against_filters(length, width_val, area_val, circularity, filter_settings):
-                                continue
-                        results.append({
-                            'id': len(results) + 1,
+                        mask_pore = np.zeros(gray_for_intensity.shape, np.uint8)
+                        cv2.drawContours(mask_pore, [contour], -1, 255, -1)
+                        mean_intensity = cv2.mean(gray_for_intensity, mask=mask_pore)[0]
+                        all_results.append({
+                            'id': 0,  # will be set after filtering
                             'length': round(length, 2),
                             'width': round(width_val, 2),
                             'area': round(area_val, 2),
@@ -223,13 +217,29 @@ class PorosityAnalyzer:
                             'q': 0,
                             'x': round(center_x, 2),
                             'y': round(center_y, 2),
-                            'bbox': [x, y, w, h]
+                            'bbox': [x, y, w, h],
+                            'mean_intensity': round(mean_intensity, 2)
                         })
                     except Exception as e:
                         print(f"Error processing contour {i}: {str(e)}")
                         continue
 
-            if not results:
+            # Now filter all_results by intensity and filter_settings
+            filtered_results = []
+            for pore in all_results:
+                # Intensity threshold
+                if not (min_threshold <= pore['mean_intensity'] <= max_threshold):
+                    continue
+                # Other filters
+                if filter_settings:
+                    if not self._validate_pore_against_filters(pore['length'], pore['width'], pore['area'], pore['circ'], filter_settings):
+                        continue
+                filtered_results.append(pore)
+            # Re-assign IDs
+            for idx, pore in enumerate(filtered_results):
+                pore['id'] = idx + 1
+
+            if not filtered_results:
                 return {
                     'status': 'error',
                     'message': 'No pores found matching the filter criteria'
@@ -238,16 +248,16 @@ class PorosityAnalyzer:
             # Generate histogram if needed
             histogram_data = None
             if view_option != 'summary':
-                histogram_data = self.generate_histogram(results, view_option)
+                histogram_data = self.generate_histogram(filtered_results, view_option)
 
             # Save analyzed image (always use the original color image for annotation)
-            output_path = self._save_analyzed_image(original_color, results, image_path)
+            output_path = self._save_analyzed_image(original_color, filtered_results, image_path, filter_settings=None)
 
             response = {
                 'status': 'success',
-                'results': results,
-                'statistics': self._calculate_statistics(results),
-                'plot_data': self._generate_distribution_plot(results),
+                'results': filtered_results,
+                'statistics': self._calculate_statistics(filtered_results),
+                'plot_data': self._generate_distribution_plot(filtered_results),
                 'analyzed_image_path': output_path,
                 'histogram': histogram_data
             }
@@ -286,7 +296,7 @@ class PorosityAnalyzer:
             print(f"Error validating pore against filters: {str(e)}")
             return False
 
-    def _save_analyzed_image(self, image, results, original_path):
+    def _save_analyzed_image(self, image, results, original_path, filter_settings=None):
         """Save the analyzed image with pore annotations"""
         try:
             # Create output directory if it doesn't exist
@@ -299,11 +309,17 @@ class PorosityAnalyzer:
 
             # Draw annotations on the image
             annotated = image.copy()
-            for pore in results:
+            pores_to_draw = results
+            if filter_settings:
+                pores_to_draw = self.apply_filters(results, filter_settings)
+            for pore in pores_to_draw:
                 x, y, w, h = pore['bbox']
-                cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(annotated, str(pore['id']), (x, y - 5),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                # Draw a circle instead of a rectangle
+                center = (x + w // 2, y + h // 2)
+                radius = int(0.5 * (w + h) // 2)
+                cv2.circle(annotated, center, radius, (0, 255, 0), 2)
+                cv2.putText(annotated, str(pore['id']), (center[0], center[1] - radius - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
             # Save the annotated image
             cv2.imwrite(output_path, annotated)
