@@ -1248,6 +1248,15 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
     }
   };
 
+  // Add right-click handler to end drawing
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    const tool = drawTools[selectedTool];
+    if (tool?.doubleClick) {
+      tool.doubleClick();
+    }
+  };
+
   // Helper function to draw shape outline for selection
   const drawShapeOutline = (ctx, shape) => {
     switch (shape.type) {
@@ -2136,7 +2145,7 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
       onWheel={handleWheel}
     >
       {/* Undo/Redo Buttons */}
-      <div className="absolute top-2 right-2 flex gap-2 z-50">
+      <div className="absolute top-2 right-2 flex gap-2 z-10">
         <button
           className={`p-2 rounded ${historyIndex > 0 ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400'} text-white`}
           onClick={handleUndo}
@@ -2155,47 +2164,74 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
         </button>
       </div>
 
-      {/* Centered, Responsive Image Area */}
-      <div 
-        className="relative flex items-center justify-center w-full h-full bg-white overflow-hidden p-12"
-        style={{ width: '100%', height: '100%' }}
+      {/* Scrollable, Centered, Responsive Image/Canvas Area */}
+      <div
+        className="relative bg-white overflow-auto p-12 flex items-center justify-center"
+        style={{
+          width: '100%',
+          height: '100%',
+          minWidth: 0,
+          minHeight: 0,
+          boxSizing: 'border-box',
+          paddingBottom: '40px', // Extra bottom padding for scrollbar accessibility
+        }}
+        tabIndex={-1}
       >
-        {/* Image Layer with Default Image */}
-        {videoUrl ? (
-          <img
-            src={videoUrl}
-            alt="Live Feed"
-            className="block mx-auto my-auto max-w-full max-h-full"
-          />
-        ) : imageUrl ? (
-          <img
-            src={imageUrl}
-            alt="Captured Image"
-            className="block mx-auto my-auto max-w-full max-h-full"
-            onError={(e) => {
-              console.error('Error displaying image');
-              setImageUrl(null);
-            }}
-          />
-        ) : (
-          // Default Envision logo
-          <img
-            src={envisionLogo}
-            alt="Envision Logo"
-            className="block mx-auto my-auto max-w-full max-h-full"
-          />
-        )}
+        <div
+          style={{
+            width: resolution.width,
+            height: resolution.height,
+            position: 'relative',
+            minWidth: resolution.width,
+            minHeight: resolution.height,
+            maxWidth: '100%',
+            maxHeight: '100%',
+            boxSizing: 'content-box',
+          }}
+        >
+          {/* Image Layer with Default Image */}
+          {videoUrl ? (
+            <img
+              src={videoUrl}
+              alt="Live Feed"
+              style={{ width: resolution.width, height: resolution.height }}
+              className="block mx-auto my-auto"
+            />
+          ) : imageUrl ? (
+            <img
+              src={imageUrl}
+              alt="Captured Image"
+              style={{ width: resolution.width, height: resolution.height }}
+              className="block mx-auto my-auto"
+              onError={(e) => {
+                console.error('Error displaying image');
+                setImageUrl(null);
+              }}
+            />
+          ) : (
+            // Default Envision logo
+            <img
+              src={envisionLogo}
+              alt="Envision Logo"
+              style={{ width: resolution.width, height: resolution.height }}
+              className="block mx-auto my-auto"
+            />
+          )}
 
-        {/* Drawing Canvas Layer */}
-        <canvas
-          ref={canvasRef}
-          className="absolute top-0 left-0 w-full h-full pointer-events-auto"
-          style={{ width: '100%', height: '100%' }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onDoubleClick={handleDoubleClick}
-        />
+          {/* Drawing Canvas Layer */}
+          <canvas
+            ref={canvasRef}
+            width={resolution.width}
+            height={resolution.height}
+            className="absolute top-0 left-0 pointer-events-auto"
+            style={{ width: resolution.width, height: resolution.height }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
+            onContextMenu={handleContextMenu}
+          />
+        </div>
       </div>
 
       {/* Add text input overlay */}

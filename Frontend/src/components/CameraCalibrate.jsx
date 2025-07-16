@@ -650,9 +650,9 @@ const CameraCalibrate = ({ imagePath }) => {
   };
 
   return (
-    <div className="h-screen flex flex-col p-4 bg-gray-50">
+    <div className="h-screen flex flex-col p-4 bg-gray-50 w-full">
       {/* Header - Enhanced */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 w-full">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-gray-800">Camera Calibration</h2>
@@ -715,10 +715,10 @@ const CameraCalibrate = ({ imagePath }) => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex gap-4">
+      {/* Main Content - Horizontal Layout */}
+      <div className="flex-1 flex flex-row gap-6 w-full overflow-hidden">
         {/* Left Panel - Controls */}
-        <div className="w-72 flex flex-col gap-3">
+        <div className="w-80 min-w-[320px] max-w-xs flex flex-col gap-3">
           {/* Calibration Type Selection - Enhanced */}
           {!calibrationType && (
             <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -866,12 +866,12 @@ const CameraCalibrate = ({ imagePath }) => {
         </div>
 
         {/* Right Panel - Canvas and Results */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
+        <div className="flex-1 flex flex-col gap-3 min-w-0 max-w-full">
           {/* Canvas */}
-          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-[400px] flex items-center justify-center">
             <canvas
               ref={canvasRef}
-              className="w-full h-full"
+              className="w-full h-full max-h-[600px] max-w-full object-contain"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -880,7 +880,7 @@ const CameraCalibrate = ({ imagePath }) => {
 
           {/* Results */}
           {(lines.length > 0 || image) && (
-            <div className="h-36 flex gap-3">
+            <div className="h-36 flex gap-3 w-full">
               {/* Measurements */}
         {lines.length > 0 && (
                 <div className="flex-1 p-4 bg-white rounded-lg shadow-sm border border-gray-200">

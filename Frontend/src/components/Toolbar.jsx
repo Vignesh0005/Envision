@@ -190,7 +190,7 @@ const Toolbar = ({
   }, []);
 
   return (
-    <div className="bg-white border-b shadow-sm h-full">
+    <div className="bg-white border-b shadow-sm h-full z-40 relative">
       <div className="flex items-center h-full px-2">
         {/* Tool Groups */}
         <div className="flex space-x-2">

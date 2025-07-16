@@ -45,6 +45,8 @@ export default function PorosityAnalysis({ onClose, imagePath }) {
 
   // Ref for debounce timer
   const previewDebounceTimer = useRef(null)
+  const imageContainerRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
 
   // --- All useCallback functions defined FIRST to ensure they are in scope ---
   const fetchHistogramData = useCallback(async (path) => {
@@ -214,7 +216,7 @@ export default function PorosityAnalysis({ onClose, imagePath }) {
           image_path: cleanPath,
           unit,
           features,
-          prep_method: prepMethod,
+          prep_method: 'color', // Force color-based detection
           filter_settings: filterSettings,
           min_threshold: minIntensityThreshold, 
           max_threshold: maxIntensityThreshold 
@@ -234,12 +236,12 @@ export default function PorosityAnalysis({ onClose, imagePath }) {
       setResults(data.results || []);
       setStatistics(data.statistics || null);
       setPlotData(data.plot_data || null);
+      // Display the processed/annotated image after analysis
       if (data.analyzed_image_path) {
         setDisplayedImage(`file:///${data.analyzed_image_path.replace(/\\/g, '/').replace(/^\/([A-Za-z]):\//, '$1:/')}`);
       } else {
         setDisplayedImage(null);
       }
-
       // Fetch histogram data after successful analysis to ensure it's up-to-date with the analyzed image
       await fetchHistogramData(imagePath);
 
@@ -408,38 +410,60 @@ export default function PorosityAnalysis({ onClose, imagePath }) {
         .replace(/\\/g, '/') 
         .replace(/^file:\/\/\//, '') 
         .replace(/^\/([A-Za-z]):\//, '$1:/') 
-      
       const displayPath = `file:///${formattedPath}`
-      console.log('Setting initial display path:', displayPath)
-      // setDisplayedImage(displayPath) is now handled by applyIntensityThresholdAndGetPreview/analyzeImage
-
-      // This effect should only trigger the preview update if imagePath changes
-      // The histogram data fetch is handled by analyzeImage and handleLoadConfig
-      applyIntensityThresholdAndGetPreview(minIntensityThreshold, maxIntensityThreshold)
+      setDisplayedImage(displayPath)
+      setResults([])
+      setStatistics(null)
+      setPlotData(null)
+      setError(null)
+      fetchHistogramData(imagePath)
     }
-  }, [imagePath, applyIntensityThresholdAndGetPreview, minIntensityThreshold, maxIntensityThreshold]) 
+  }, [imagePath])
+
+  // Draw overlays on the canvas
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    const container = imageContainerRef.current;
+    if (!canvas || !container || !displayedImage || !results.length) return;
+    const ctx = canvas.getContext('2d');
+    const img = container.querySelector('img');
+    if (!img) return;
+    // Set canvas size to match image
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw overlays
+    results.forEach((row, idx) => {
+      // Assume row has x, y, width, height, or boundary points
+      // Draw bounding box or circle (customize as needed)
+      if (row.x !== undefined && row.y !== undefined && row.radius !== undefined) {
+        // Draw circle
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(row.x, row.y, row.radius, 0, 2 * Math.PI);
+        ctx.stroke();
+        // Draw number
+        ctx.fillStyle = '#00FF00';
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText(idx + 1, row.x - 10, row.y - 10);
+      } else if (row.bbox) {
+        // Draw bounding box
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(row.bbox.x, row.bbox.y, row.bbox.width, row.bbox.height);
+        ctx.fillStyle = '#00FF00';
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText(idx + 1, row.bbox.x, row.bbox.y - 5);
+      }
+    });
+  }, [displayedImage, results]);
 
   // Debounce effect for real-time preview updates
-  useEffect(() => {
-    if (imagePath && histogramData) { 
-      if (previewDebounceTimer.current) {
-        clearTimeout(previewDebounceTimer.current)
-      }
-
-      previewDebounceTimer.current = setTimeout(() => {
-        applyIntensityThresholdAndGetPreview(minIntensityThreshold, maxIntensityThreshold)
-      }, 150) 
-    }
-
-    return () => {
-      if (previewDebounceTimer.current) {
-        clearTimeout(previewDebounceTimer.current)
-      }
-    }
-  }, [minIntensityThreshold, maxIntensityThreshold, imagePath, histogramData, applyIntensityThresholdAndGetPreview])
+  // Remove auto-processing debounce effect. Only process on Run.
 
   return (
-    <div className="fixed inset-0 flex justify-end">
+    <div className="fixed inset-0 flex justify-end z-50">
       {/* Main Content */}
       <div className="flex-1 bg-gray-100">
         {/* Image Display Area */}

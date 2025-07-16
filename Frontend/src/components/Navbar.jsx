@@ -793,8 +793,8 @@ const Navbar = ({ imagePath, setImagePath, currentImageUrl }) => {
   return (
     <>
       <nav className="bg-gray-800 text-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="relative flex items-center justify-end h-8 w-full">
+      <div className="w-full px-4">
+        <div className="relative flex items-center justify-start h-8 w-full">
           {/* Mobile menu button (optional, can be removed if not needed) */}
           {/* <div className="md:hidden">
             <button className="inline-flex items-center justify-center p-1 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none">
@@ -844,7 +844,7 @@ const Navbar = ({ imagePath, setImagePath, currentImageUrl }) => {
                   </button>
                   {activeDropdown === index && (
                     <div 
-                      className="origin-top-right absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 
+                      className="origin-top-left absolute left-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 
                         transform transition-all duration-200 ease-in-out z-50"
                       role="menu"
                     >

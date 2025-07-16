@@ -61,19 +61,21 @@ const App = () => {
       {/* Top Menu Bars */}
       <div className="flex flex-col w-full z-50">
         <Navbar imagePath={imagePath} setImagePath={setImagePath} />
-        <Toolbar 
-          onSelectTool={handleSelectTool}
-          selectedTool={selectedTool}
-          measurementData={measurementData}
-          onClearShapes={handleClearShapes}
-          onColorChange={setCurrentColor}
-          onFontColorChange={setCurrentFontColor}
-          onThicknessChange={setCurrentThickness}
-          currentColor={currentColor}
-          currentFontColor={currentFontColor}
-          currentThickness={currentThickness}
-          currentCalibration={currentCalibration}
-        />
+        {!(showNodularity || showPhaseSegmentation || showInclusion || showPorosity) && (
+          <Toolbar 
+            onSelectTool={handleSelectTool}
+            selectedTool={selectedTool}
+            measurementData={measurementData}
+            onClearShapes={handleClearShapes}
+            onColorChange={setCurrentColor}
+            onFontColorChange={setCurrentFontColor}
+            onThicknessChange={setCurrentThickness}
+            currentColor={currentColor}
+            currentFontColor={currentFontColor}
+            currentThickness={currentThickness}
+            currentCalibration={currentCalibration}
+          />
+        )}
       </div>
       {/* Main Content Area */}
       <div className="flex flex-1 min-h-0 overflow-hidden">

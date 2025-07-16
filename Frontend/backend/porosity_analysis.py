@@ -65,7 +65,28 @@ class PorosityAnalyzer:
             print(f"ERROR in _get_absolute_path: {str(e)}")
             raise ValueError(f"Invalid image path or file not accessible: {str(e)}")
 
-    def analyze_porosity(self, image_path, unit='microns', features='dark', filter_settings=None, view_option='summary', min_threshold=0, max_threshold=255):
+    def _sanitize_json(self, obj):
+        """Recursively replace NaN, Infinity, -Infinity with None for JSON safety."""
+        import math
+        import numpy as np
+        if isinstance(obj, dict):
+            return {k: self._sanitize_json(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._sanitize_json(v) for v in obj]
+        elif isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        elif isinstance(obj, np.floating):
+            if np.isnan(obj) or np.isinf(obj):
+                return None
+            return float(obj)
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        else:
+            return obj
+
+    def analyze_porosity(self, image_path, unit='microns', features='dark', filter_settings=None, view_option='summary', min_threshold=0, max_threshold=255, prep_method=None):
         try:
             if not os.path.exists(image_path):
                 return {
@@ -82,92 +103,131 @@ class PorosityAnalyzer:
                 }
 
             height, width = image.shape[:2]
-            
-            # Convert to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            
-            # Apply preprocessing based on features
-            if features == 'dark':
-                # Invert if looking for dark features
-                gray = 255 - gray
-                
-            # Apply thresholding
-            _, binary_min = cv2.threshold(gray, min_threshold, 255, cv2.THRESH_BINARY)
-            _, binary_max = cv2.threshold(gray, max_threshold, 255, cv2.THRESH_BINARY_INV)
-            binary = cv2.bitwise_and(binary_min, binary_max)
-            
-            # Find contours
-            contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-            
+            original_color = image.copy()  # Always keep the original color image for annotation
+
             results = []
-            
-            # Process each contour
-            for i, contour in enumerate(contours):
-                try:
-                    # Calculate properties
-                    area = cv2.contourArea(contour)
-                    perimeter = cv2.arcLength(contour, True)
-                    x, y, w, h = cv2.boundingRect(contour)
-                    
-                    # Filter out contours that are too large (e.g., image border)
-                    # Assuming that actual pores will not take up a significant portion of the image area
-                    image_area = height * width
-                    if area / image_area > 0.90:  # If contour area is more than 90% of image area, skip it
-                        continue
-                    
-                    # Calculate moments for center
-                    M = cv2.moments(contour)
-                    if M["m00"] != 0:
-                        cx = int(M["m10"] / M["m00"])
-                        cy = int(M["m01"] / M["m00"])
-                    else:
-                        cx = x + w//2
-                        cy = y + h//2
-                    
-                    # Calculate center coordinates as percentages
-                    center_x = (cx / width) * 100
-                    center_y = (cy / height) * 100
-                
-                    # Calculate circularity using a more accurate formula
-                    # Circularity = 4π * Area / (Perimeter^2)
-                    # A perfect circle has circularity = 1
-                    circularity = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 0
-
-                    # Calculate equivalent diameter for more accurate width
-                    equivalent_diameter = np.sqrt(4 * area / np.pi)
-
-                    # Convert to selected unit
-                    if unit == 'microns':
-                        # Convert all measurements using calibration factor
-                        length = h * self.calibration_factor
-                        width = equivalent_diameter * self.calibration_factor  # Use equivalent diameter instead of bounding box width
-                        area = area * (self.calibration_factor ** 2)
-                        perimeter = perimeter * self.calibration_factor
-                    else:
-                        length = h
-                        width = equivalent_diameter
-
-                    # Apply filters if provided
-                    if filter_settings:
-                        if not self._validate_pore_against_filters(length, width, area, circularity, filter_settings):
+            # --- HSV Color-based Detection for colored circles ---
+            if prep_method == 'color':
+                # Convert to HSV
+                hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+                # Define a mask for all non-white (colored) regions
+                # (tune these values as needed for your images)
+                lower = np.array([0, 50, 50])
+                upper = np.array([180, 255, 255])
+                mask = cv2.inRange(hsv, lower, upper)
+                # Morphological operations to clean up
+                kernel = np.ones((5, 5), np.uint8)
+                mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+                # Find contours
+                contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                for i, contour in enumerate(contours):
+                    try:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        x, y, w, h = cv2.boundingRect(contour)
+                        image_area = height * width
+                        if area / image_area > 0.90 or area < 50:  # skip huge or tiny
                             continue
-
-                    results.append({
-                        'id': i + 1,
-                        'length': round(length, 2),
-                        'width': round(width, 2),
-                        'area': round(area, 2),
-                        'circ': round(circularity, 2),
-                        'per': round(perimeter, 2),
-                        'q': 0,  # Quality flag
-                        'x': round(center_x, 2),
-                        'y': round(center_y, 2),
-                        'bbox': [x, y, w, h]
-                    })
-
-                except Exception as e:
-                    print(f"Error processing contour {i}: {str(e)}")
-                    continue
+                        M = cv2.moments(contour)
+                        if M["m00"] != 0:
+                            cx = int(M["m10"] / M["m00"])
+                            cy = int(M["m01"] / M["m00"])
+                        else:
+                            cx = x + w//2
+                            cy = y + h//2
+                        center_x = (cx / width) * 100
+                        center_y = (cy / height) * 100
+                        circularity = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 0
+                        equivalent_diameter = np.sqrt(4 * area / np.pi)
+                        if unit == 'microns':
+                            length = h * self.calibration_factor
+                            width_val = equivalent_diameter * self.calibration_factor
+                            area_val = area * (self.calibration_factor ** 2)
+                            perimeter_val = perimeter * self.calibration_factor
+                        else:
+                            length = h
+                            width_val = equivalent_diameter
+                            area_val = area
+                            perimeter_val = perimeter
+                        if filter_settings:
+                            if not self._validate_pore_against_filters(length, width_val, area_val, circularity, filter_settings):
+                                continue
+                        results.append({
+                            'id': len(results) + 1,
+                            'length': round(length, 2),
+                            'width': round(width_val, 2),
+                            'area': round(area_val, 2),
+                            'circ': round(circularity, 2),
+                            'per': round(perimeter_val, 2),
+                            'q': 0,
+                            'x': round(center_x, 2),
+                            'y': round(center_y, 2),
+                            'bbox': [x, y, w, h]
+                        })
+                    except Exception as e:
+                        print(f"Error processing color contour {i}: {str(e)}")
+                        continue
+            else:
+                # --- Existing grayscale/thresholding logic ---
+                # Convert to grayscale
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                # Apply preprocessing based on features
+                if features == 'dark':
+                    gray = 255 - gray
+                # Apply thresholding
+                _, binary_min = cv2.threshold(gray, min_threshold, 255, cv2.THRESH_BINARY)
+                _, binary_max = cv2.threshold(gray, max_threshold, 255, cv2.THRESH_BINARY_INV)
+                binary = cv2.bitwise_and(binary_min, binary_max)
+                # Find contours
+                contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                for i, contour in enumerate(contours):
+                    try:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        x, y, w, h = cv2.boundingRect(contour)
+                        image_area = height * width
+                        if area / image_area > 0.90 or area < 50:
+                            continue
+                        M = cv2.moments(contour)
+                        if M["m00"] != 0:
+                            cx = int(M["m10"] / M["m00"])
+                            cy = int(M["m01"] / M["m00"])
+                        else:
+                            cx = x + w//2
+                            cy = y + h//2
+                        center_x = (cx / width) * 100
+                        center_y = (cy / height) * 100
+                        circularity = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 0
+                        equivalent_diameter = np.sqrt(4 * area / np.pi)
+                        if unit == 'microns':
+                            length = h * self.calibration_factor
+                            width_val = equivalent_diameter * self.calibration_factor
+                            area_val = area * (self.calibration_factor ** 2)
+                            perimeter_val = perimeter * self.calibration_factor
+                        else:
+                            length = h
+                            width_val = equivalent_diameter
+                            area_val = area
+                            perimeter_val = perimeter
+                        if filter_settings:
+                            if not self._validate_pore_against_filters(length, width_val, area_val, circularity, filter_settings):
+                                continue
+                        results.append({
+                            'id': len(results) + 1,
+                            'length': round(length, 2),
+                            'width': round(width_val, 2),
+                            'area': round(area_val, 2),
+                            'circ': round(circularity, 2),
+                            'per': round(perimeter_val, 2),
+                            'q': 0,
+                            'x': round(center_x, 2),
+                            'y': round(center_y, 2),
+                            'bbox': [x, y, w, h]
+                        })
+                    except Exception as e:
+                        print(f"Error processing contour {i}: {str(e)}")
+                        continue
 
             if not results:
                 return {
@@ -180,10 +240,10 @@ class PorosityAnalyzer:
             if view_option != 'summary':
                 histogram_data = self.generate_histogram(results, view_option)
 
-            # Save analyzed image
-            output_path = self._save_analyzed_image(image, results, image_path)
+            # Save analyzed image (always use the original color image for annotation)
+            output_path = self._save_analyzed_image(original_color, results, image_path)
 
-            return {
+            response = {
                 'status': 'success',
                 'results': results,
                 'statistics': self._calculate_statistics(results),
@@ -191,6 +251,7 @@ class PorosityAnalyzer:
                 'analyzed_image_path': output_path,
                 'histogram': histogram_data
             }
+            return self._sanitize_json(response)
 
         except Exception as e:
             print(f"Error in analyze_porosity: {str(e)}")

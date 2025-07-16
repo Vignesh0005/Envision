@@ -1557,40 +1557,35 @@ def analyze_porosity():
         image_path = data.get('image_path')
         unit = data.get('unit', 'microns')
         features = data.get('features', 'dark')
-        prep_method = data.get('prep_method', 'threshold')
-        filters = data.get('filters', [])
-        
-        if not image_path:
-            return jsonify({
-                'status': 'error',
-                'message': 'No image path provided'
-            })
+        filter_settings = data.get('filter_settings')
+        min_threshold = data.get('min_threshold', 0)
+        max_threshold = data.get('max_threshold', 255)
+        prep_method = data.get('prep_method')
+        view_option = data.get('view_option', 'summary')
 
-        # Apply filters
-        analyzer.clear_filters()
-        for filter in filters:
-            analyzer.add_filter(filter['type'], {
-                'min_size': filter.get('min', 0),
-                'max_size': filter.get('max', float('inf')),
-                'min_circ': filter.get('min', 0),
-                'max_circ': filter.get('max', 1)
-            })
+        # Only call prepare_image for supported options
+        supported_preps = ['threshold', 'edge_detect', 'adaptive', 'morphological']
+        if prep_method in supported_preps:
+            prepared_path = analyzer.prepare_image(image_path, prep_method, filter_settings, min_threshold, max_threshold)
+        else:
+            prepared_path = image_path  # Use original image for 'color' or unsupported options
 
-        # Prepare image if needed
-        if prep_method != 'none':
-            prep_result = analyzer.prepare_image(image_path, prep_method)
-            if prep_result['status'] == 'error':
-                return jsonify(prep_result)
-            image_path = prep_result['filepath']
-
-        # Analyze porosity
-        result = analyzer.analyze_porosity(image_path, unit, features)
+        result = analyzer.analyze_porosity(
+            prepared_path,
+            unit=unit,
+            features=features,
+            filter_settings=filter_settings,
+            view_option=view_option,
+            min_threshold=min_threshold,
+            max_threshold=max_threshold,
+            prep_method=prep_method
+        )
         return jsonify(result)
 
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f'Porosity analysis error: {str(e)}'
         })
 
 @app.route('/api/porosity/save-config', methods=['POST'])
