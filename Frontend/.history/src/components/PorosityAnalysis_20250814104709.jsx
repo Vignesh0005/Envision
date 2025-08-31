@@ -238,15 +238,9 @@ export default function PorosityAnalysis({ onClose, imagePath, imageUrl }) {
       setPlotData(data.plot_data || null);
       // Display the processed/annotated image after analysis
       if (data.analyzed_image_path) {
-        // Use the backend's image serving endpoint for the analyzed image
-        const analyzedImageUrl = `${API_BASE_URL}/api/get-image?path=${encodeURIComponent(data.analyzed_image_path)}&t=${Date.now()}`;
-        setDisplayedImage(analyzedImageUrl);
-      } else if (data.analyzed_image) {
-        // If the backend returns a base64 encoded image
-        setDisplayedImage(`data:image/png;base64,${data.analyzed_image}`);
+        setDisplayedImage(`file:///${data.analyzed_image_path.replace(/\\/g, '/').replace(/^\/([A-Za-z]):\//, '$1:/')}?t=${Date.now()}`);
       } else {
-        // Keep the original image if no analyzed image is provided
-        setDisplayedImage(imageUrl);
+        setDisplayedImage(null);
       }
       // Fetch histogram data after successful analysis to ensure it's up-to-date with the analyzed image
       await fetchHistogramData(imagePath);
@@ -411,15 +405,20 @@ export default function PorosityAnalysis({ onClose, imagePath, imageUrl }) {
 
   // --- useEffects ---
   useEffect(() => {
-    if (imagePath && imageUrl) {
-      setDisplayedImage(imageUrl)
+    if (imagePath) {
+      let formattedPath = imagePath
+        .replace(/\\/g, '/') 
+        .replace(/^file:\/\/\//, '') 
+        .replace(/^\/([A-Za-z]):\//, '$1:/') 
+      const displayPath = `file:///${formattedPath}`
+      setDisplayedImage(displayPath)
       setResults([])
       setStatistics(null)
       setPlotData(null)
       setError(null)
       fetchHistogramData(imagePath)
     }
-  }, [imagePath, imageUrl])
+  }, [imagePath])
 
   // Draw overlays on the canvas
   useEffect(() => {

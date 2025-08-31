@@ -41,21 +41,12 @@ const ControlBox = ({ isRecording, setIsRecording, setImagePath, onFolderChange 
           body: JSON.stringify(requestBody)
         });
 
-        console.log('🔍 Debug - Response status:', response.status);
-        console.log('🔍 Debug - Response ok:', response.ok);
-        
         if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Camera started successfully:', data);
           setIsRecording(true);
           // Set zoom after camera starts if it's HIKERBOT
           if (cameraType === 'HIKERBOT') {
             await handleMagnificationChange(magnification);
           }
-        } else {
-          const errorText = await response.text();
-          console.error('❌ Camera start failed:', errorText);
-          alert('Failed to start camera: ' + errorText);
         }
       } else {
         await fetch('http://localhost:5000/api/stop-camera', {
