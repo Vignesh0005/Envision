@@ -12,7 +12,7 @@ import ShapeTracker from './components/ShapeTracker'
 
 const SIDEBAR_WIDTH = '320px';
 const VIEWER_MAX_WIDTH = 'calc(100vw - 340px)';
-const VIEWER_MAX_HEIGHT = 'calc(100vh - 120px - 300px)'; // minus top bars and gallery
+const VIEWER_MAX_HEIGHT = 'calc(100vh - 120px - 300px)'; // minus top bars and gallery height
 
 const App = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -81,7 +81,7 @@ const App = () => {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left Sidebar */}
         <div className="flex flex-col h-full" style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}>
-          {/* Drawn Shapes Panel - fill sidebar up to ControlBox */}
+          {/* Drawn Shapes Panel - fill available space */}
           <div className="flex-1 min-h-0 w-full">
             <ShapeTracker
               shapes={shapes}
@@ -105,30 +105,33 @@ const App = () => {
           </div>
         </div>
         {/* Main Image Viewer Centered */}
-        <div className="flex-1 flex items-center justify-center overflow-hidden h-full">
-          <div className="relative bg-white flex items-center justify-center w-full h-full">
-            <Display
-              isRecording={isRecording}
-              imagePath={imagePath}
-              onImageLoad={handleImageLoad}
-              selectedTool={selectedTool}
-              shapes={shapes}
-              onShapesUpdate={handleShapesUpdate}
-              currentColor={currentColor}
-              currentFontColor={currentFontColor}
-              currentThickness={currentThickness}
-              onColorChange={setCurrentColor}
-              onFontColorChange={setCurrentFontColor}
+        <div className="flex-1 flex flex-col overflow-hidden h-full">
+          {/* Main Display Area */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <div className="relative bg-white flex items-center justify-center w-full h-full">
+              <Display
+                isRecording={isRecording}
+                imagePath={imagePath}
+                onImageLoad={handleImageLoad}
+                selectedTool={selectedTool}
+                shapes={shapes}
+                onShapesUpdate={handleShapesUpdate}
+                currentColor={currentColor}
+                currentFontColor={currentFontColor}
+                currentThickness={currentThickness}
+                onColorChange={setCurrentColor}
+                onFontColorChange={setCurrentFontColor}
+              />
+            </div>
+          </div>
+          {/* Image Gallery fixed at bottom of right pane */}
+          <div className="w-full h-[300px] border-t border-gray-200 bg-white">
+            <ImageList
+              currentPath={currentFolderPath}
+              onSelectImage={handleImageSelect}
             />
           </div>
         </div>
-      </div>
-      {/* Bottom Gallery as Footer/Tray */}
-      <div className="w-full flex justify-center items-end z-40">
-        <ImageList
-          currentPath={currentFolderPath}
-          onSelectImage={handleImageSelect}
-        />
       </div>
       {/* Analysis Modals */}
       {showNodularity && (
