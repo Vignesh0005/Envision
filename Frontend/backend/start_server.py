@@ -152,7 +152,7 @@ def health_check():
         'save_path': DEFAULT_SAVE_PATH
     })
 
-@app.route('/api/list-images', methods=['GET'])
+@app.route('/api/list-images', methods=['GET', 'POST'])
 def list_images():
     try:
         # Get the folder path from query parameters or use default
@@ -223,7 +223,35 @@ def get_image():
             'message': str(e)
         }), 500
 
-@app.route('/api/watch-folder', methods=['GET'])
+@app.route('/api/thumbnail', methods=['GET'])
+def get_thumbnail():
+    try:
+        image_path = request.args.get('path')
+        if not image_path or not os.path.exists(image_path):
+            return jsonify({
+                'status': 'error',
+                'message': 'Image not found'
+            }), 404
+        
+        # Check if it's a valid image file
+        if not image_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff')):
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid image file'
+            }), 400
+        
+        # For now, return the full image as thumbnail
+        # In a real implementation, you would create and cache actual thumbnails
+        return send_file(image_path, mimetype='image/jpeg')
+        
+    except Exception as e:
+        logger.error(f"Error serving thumbnail: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/watch-folder', methods=['GET', 'POST'])
 def watch_folder():
     try:
         folder_path = request.args.get('path', DEFAULT_SAVE_PATH)
@@ -243,6 +271,62 @@ def watch_folder():
         
     except Exception as e:
         logger.error(f"Error setting up folder watching: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/get-calibration', methods=['GET'])
+def get_calibration():
+    try:
+        magnification = request.args.get('magnification', 'default')
+        
+        # For now, return a default calibration response
+        # In a real implementation, this would fetch from a database or file
+        return jsonify({
+            'status': 'success',
+            'calibration': {
+                'magnification': magnification,
+                'pixelSize': 0.1,  # Default pixel size in microns
+                'units': 'microns',
+                'timestamp': datetime.now().isoformat()
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting calibration: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/get-calibrations', methods=['GET'])
+def get_calibrations():
+    try:
+        # For now, return a default calibrations list
+        # In a real implementation, this would fetch from a database or file
+        return jsonify({
+            'status': 'success',
+            'calibrations': [
+                {
+                    'id': 1,
+                    'magnification': '10x',
+                    'pixelSize': 0.1,
+                    'units': 'microns',
+                    'timestamp': datetime.now().isoformat()
+                },
+                {
+                    'id': 2,
+                    'magnification': '20x',
+                    'pixelSize': 0.05,
+                    'units': 'microns',
+                    'timestamp': datetime.now().isoformat()
+                }
+            ]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting calibrations: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)
