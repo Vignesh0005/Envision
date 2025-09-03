@@ -117,6 +117,9 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
       canvas.width = resolution.width;
       canvas.height = resolution.height;
       
+      // Clear the canvas initially
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
       // Set up initial context styles
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 2;
@@ -968,7 +971,9 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
     ctx.clearRect(0, 0, resolution.width, resolution.height);
     
     // Draw all saved shapes
-    shapes.forEach(shape => drawShape(ctx, shape));
+    if (shapes && shapes.length > 0) {
+      shapes.forEach(shape => drawShape(ctx, shape));
+    }
     
     // Draw current shape being drawn
     if (currentShape) {
@@ -2044,11 +2049,33 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
       setCurrentShape(null);
       setIsDrawing(false);
       setCurvePoints([]);
+      // Clear the canvas when shapes are cleared
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        // Clear the entire canvas
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        // Also clear any current drawing state
+        setCurrentShape(null);
+      }
+    } else {
+      // If there are shapes, redraw them
       if (ctxRef.current) {
         drawShapes(ctxRef.current);
       }
     }
   }, [shapes]);
+
+  // Add effect to clear image when imagePath is cleared
+  useEffect(() => {
+    if (!imagePath) {
+      setImageUrl(null);
+      // Clear the canvas when image is cleared
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
+  }, [imagePath]);
 
   // Add text submission handler
   const handleTextSubmit = (e) => {
@@ -2083,6 +2110,14 @@ const Display = ({ isRecording, imagePath, onImageLoad, selectedTool, shapes, on
   // Add shape selection handler
   const handleShapeSelect = (shape) => {
     setSelectedShape(shape);
+  };
+
+  // Add function to clear canvas completely
+  const clearCanvas = () => {
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
   };
 
   // Add function to update shapes with history tracking
